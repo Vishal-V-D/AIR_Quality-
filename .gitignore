@@ -1,0 +1,24 @@
+# Node modules and build output
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# Python cache and temporary files
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache/
+
+# OS/Editor specific
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Database files
+*.sqlite
+*.db
+
+# Logs
+*.log
