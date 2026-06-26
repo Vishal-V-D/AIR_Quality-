@@ -10,6 +10,8 @@ import SpectroscopeAnalysis from './components/SpectroscopeAnalysis';
 import NationalRegistry from './components/NationalRegistry';
 import StateOrg from './components/StateOrg';
 import FieldOfficers from './components/FieldOfficers';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000';
 
 const WARDS = [
   { id: 'Ward 1', name: 'Connaught Place', lat: 28.6304, lng: 77.2177, devices: 16 },
@@ -83,7 +85,7 @@ export default function App() {
 
   useEffect(() => {
     const connectWS = () => {
-      const ws = new WebSocket('ws://127.0.0.1:8000/ws/telemetry');
+      const ws = new WebSocket(`${WS_URL}/ws/telemetry`);
       wsRef.current = ws;
       ws.onmessage = (event) => {
         const payload = JSON.parse(event.data);
@@ -101,7 +103,7 @@ export default function App() {
 
   const fetchActions = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/enforcement');
+      const res = await fetch(`${API_URL}/api/enforcement`);
       const data = await res.json();
       setActions(data);
     } catch (e) { }
@@ -113,17 +115,17 @@ export default function App() {
   };
 
   const injectSpike = async () => {
-    try { await fetch('http://127.0.0.1:8000/api/simulate/inject', { method: 'POST' }); } catch (e) { }
+    try { await fetch(`${API_URL}/api/simulate/inject`, { method: 'POST' }); } catch (e) { }
   };
 
   const resetSimulation = async () => {
-    try { await fetch('http://127.0.0.1:8000/api/simulate/reset', { method: 'POST' }); } catch (e) { }
+    try { await fetch(`${API_URL}/api/simulate/reset`, { method: 'POST' }); } catch (e) { }
   };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/regulations/search?query=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`${API_URL}/api/regulations/search?query=${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
       setSearchResults(data);
     } catch (e) { }
