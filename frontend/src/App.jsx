@@ -10,8 +10,8 @@ import SpectroscopeAnalysis from './components/SpectroscopeAnalysis';
 import NationalRegistry from './components/NationalRegistry';
 import StateOrg from './components/StateOrg';
 import FieldOfficers from './components/FieldOfficers';
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://air-quality-yxqa.onrender.com';
+const WS_URL = import.meta.env.VITE_WS_URL || 'wss://air-quality-yxqa.onrender.com';
 
 const WARDS = [
   { id: 'Ward 1', name: 'Connaught Place', lat: 28.6304, lng: 77.2177, devices: 16 },
