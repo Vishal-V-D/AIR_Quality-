@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { ArrowLeft, Plus, Minus, Droplets, Thermometer, Eye, Wind, Layers, Sun, X, Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -26,7 +27,7 @@ export default function SpectroscopeAnalysis({ actionId, actions, lightTheme, on
   const [chatHistory, setChatHistory] = useState([
     {
       role: 'assistant',
-      text: '👋 Hello! I am **NEXUS AI Sentinel Copilot** — powered by Groq LLM with live Delhi telemetry.\n\nI have already analyzed PM2.5 across all 6 wards. Try the quick-fire queries below, or type your own question.'
+      text: '👋 Hello! I am **PranalAQ Copilot** — powered by Groq LLM with live Delhi telemetry.\n\nI have already analyzed PM2.5 across all 6 wards. Try the quick-fire queries below, or type your own question.'
     },
     {
       role: 'user',
@@ -1020,7 +1021,7 @@ export default function SpectroscopeAnalysis({ actionId, actions, lightTheme, on
                     background: msg.role === 'user' ? '#f89c1d' : T.cardSolid,
                     color: msg.role === 'user' ? '#ffffff' : T.text,
                     padding: '9px 13px', borderRadius: 12, fontSize: 10.5, lineHeight: 1.5,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)', whiteSpace: 'pre-line',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                     border: msg.isGroq ? '1px solid rgba(46,204,113,0.3)' : 'none'
                   }}>
                     {msg.isGroq && (
@@ -1028,7 +1029,17 @@ export default function SpectroscopeAnalysis({ actionId, actions, lightTheme, on
                         ⚡ GROQ LLM · {msg.model || 'llama3-8b'}
                       </div>
                     )}
-                    {msg.text}
+                    <ReactMarkdown
+                      components={{
+                        p: ({node, ...props}) => <p style={{ margin: '0 0 6px 0', lastChild: { margin: 0 } }} {...props} />,
+                        ul: ({node, ...props}) => <ul style={{ margin: '4px 0', paddingLeft: '14px', listStyleType: 'disc' }} {...props} />,
+                        ol: ({node, ...props}) => <ol style={{ margin: '4px 0', paddingLeft: '14px', listStyleType: 'decimal' }} {...props} />,
+                        li: ({node, ...props}) => <li style={{ marginBottom: '4px' }} {...props} />,
+                        strong: ({node, ...props}) => <strong style={{ color: msg.role === 'user' ? '#ffffff' : '#f89c1d', fontWeight: '800' }} {...props} />
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
                   </div>
                 ))}
                 {chatLoading && (

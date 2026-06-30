@@ -631,8 +631,8 @@ export default function App() {
       <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`} style={{ overflowX: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-            <div className="logo-icon">N</div>
-            <span className="logo-text">nafas</span>
+            <div className="logo-icon">P</div>
+            <span className="logo-text">PranalAQ</span>
           </div>
           <button className="sb-toggle-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
             <ChevronLeft size={16} style={{ transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
