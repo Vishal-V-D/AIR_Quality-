@@ -391,7 +391,7 @@ Your role:
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": user_msg},
@@ -400,7 +400,7 @@ Your role:
             temperature=0.65,
         )
         reply = response.choices[0].message.content.strip()
-        return {"reply": reply, "source": "groq", "model": "llama3-8b-8192"}
+        return {"reply": reply, "source": "groq", "model": "llama-3.1-8b-instant"}
     except Exception as e:
         print("Groq error:", e)
         return {
