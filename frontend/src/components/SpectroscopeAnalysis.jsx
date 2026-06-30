@@ -1,9 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { ArrowLeft, Plus, Minus, Droplets, Thermometer, Eye, Wind, Layers, Sun, X } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Droplets, Thermometer, Eye, Wind, Layers, Sun, X, Send } from 'lucide-react';
 
-export default function SpectroscopeAnalysis({ actionId, actions, lightTheme, onClose }) {
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export default function SpectroscopeAnalysis({ actionId, actions, lightTheme, onClose, telemetry: externalTelemetry, anomalyActive: externalAnomaly, onExecuteAction }) {
   const mountRef = useRef(null);
+  const chatEndRef = useRef(null);
   const [is3D, setIs3D] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(40);
   const [selectedLocation, setSelectedLocation] = useState('Delhi Region, India');
@@ -14,12 +17,44 @@ export default function SpectroscopeAnalysis({ actionId, actions, lightTheme, on
   const [visibility, setVisibility] = useState(5);
 
   // Dynamic AI State variables
-  const [spikeInjected, setSpikeInjected] = useState(false);
-  const [copilotTab, setCopilotTab] = useState('fingerprint'); // 'fingerprint' or 'chat'
-  const [chatLanguage, setChatLanguage] = useState('en'); // 'en', 'hi', 'ta'
+  const [spikeInjected, setSpikeInjected] = useState(externalAnomaly || false);
+  const [copilotTab, setCopilotTab] = useState('fingerprint');
+  const [chatLanguage, setChatLanguage] = useState('en');
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [executingAction, setExecutingAction] = useState(null);
   const [chatHistory, setChatHistory] = useState([
-    { role: 'assistant', text: 'Hello! I am AI Sentinel Copilot. I have analyzed real-time and historical telemetry across Delhi Region.\n\nAsk me where to deploy inspectors or analyze risk vectors below.' }
+    {
+      role: 'assistant',
+      text: '👋 Hello! I am **NEXUS AI Sentinel Copilot** — powered by Groq LLM with live Delhi telemetry.\n\nI have already analyzed PM2.5 across all 6 wards. Try the quick-fire queries below, or type your own question.'
+    },
+    {
+      role: 'user',
+      text: 'Where should I deploy 3 inspectors today?'
+    },
+    {
+      role: 'assistant',
+      text: '📍 **Ranked Deployment Directive (Live Data):**\n\n1. **Okhla Industrial (Ward-3)** — PM2.5 118+ µg/m³. Priority: SO₂ stack checks on Phase-II smelter units. Expected AQI reduction: −28 pts.\n2. **Anand Vihar (Ward-4)** — PM2.5 72+ µg/m³. Deploy emission checker at NH-9 freight entry. Expected reduction: −18 pts.\n3. **Wazirpur Industrial (Ward-6)** — PM2.5 92+ µg/m³. Check wet-suppression compliance. Expected reduction: −14 pts.',
+      isGroq: false
+    },
+    {
+      role: 'user',
+      text: 'What is the expected impact of a traffic diversion on Anand Vihar?'
+    },
+    {
+      role: 'assistant',
+      text: '🚛 **AI Scenario Prediction — NH-9 Freight Diversion:**\n\n• Diverting commercial freight 07:00–09:00 reduces local diesel PM2.5 by **~38%**\n• Ward-4 PM2.5 projected: **210 → 130 µg/m³** (Poor → Moderate category)\n• SO₂/NO₂ expected drop: **−45 ppm** within 90 minutes\n• Estimated health benefit: **15% fewer respiratory surge cases** in local clinics today',
+      isGroq: false
+    },
+    {
+      role: 'user',
+      text: 'Why does Okhla have higher AQI than Dwarka today?'
+    },
+    {
+      role: 'assistant',
+      text: '🔬 **Forensic Fingerprint — Okhla vs Dwarka:**\n\n• **Wind corridor trap:** NE wind shift at 06:00 (direction 72°E) channels industrial exhaust into the Okhla basin\n• **Boundary layer collapse:** Height dropped 180m vs yesterday — concentrating stack emissions\n• **Source mix:** Okhla = 68% industrial (smelters) vs Dwarka = 71% construction dust\n• **Traffic load:** Okhla carries 3.2× more freight tonnage per km than Dwarka bypass routes',
+      isGroq: false
+    }
   ]);
   const [isCopilotOpen, setIsCopilotOpen] = useState(true);
 
@@ -594,34 +629,61 @@ export default function SpectroscopeAnalysis({ actionId, actions, lightTheme, on
       : `அறிவிப்பு: ${selectedLocation.split(',')[0]} பகுதியில் காற்றின் தரம் ஓரளவு சீராக உள்ளது. சுவாச பிரச்சனை உள்ளவர்கள் எச்சரிக்கையுடன் இருக்கவும்.`
   };
 
-  const handleChatPrompt = (prompt) => {
-    if (chatLoading) return;
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, chatLoading]);
+
+  const handleChatPrompt = useCallback(async (prompt) => {
+    if (chatLoading || !prompt.trim()) return;
+    const msg = prompt.trim();
     setChatLoading(true);
-    setChatHistory(prev => [...prev, { role: 'user', text: prompt }]);
-    
-    setTimeout(() => {
-      let response = '';
-      if (prompt.includes('deploy')) {
-        response = `Ranked Inspector Deployment Directive:
-1. 📍 **Okhla Industrial Phase II** (Risk Score: 94/100) - Excess SO2 telemetry. Expected AQI reduction: -22 points.
-2. 📍 **Sarita Vihar Crossing** (Risk Score: 82/100) - Construction dust violations. Expected AQI reduction: -14 points.
-3. 📍 **Dwarka Sector 9 Bypass** (Risk Score: 78/100) - Diesel vehicle congestion. Expected AQI reduction: -9 points.`;
-      } else if (prompt.includes('impact')) {
-        response = `AI Scenario Prediction:
-By implementing heavy vehicle diversion on NH-44 from 07:00 to 09:00:
-• Reduces local diesel emissions by ~38%.
-• Dynamic local PM2.5 concentration drops from 210 to 180 (Category: Poor to Moderate).
-• Quantified health benefit: prevents estimated 15% respiratory surge cases in local ward clinics today.`;
-      } else {
-        response = `Forensic Fingerprint Analysis:
-${selectedLocation.split(',')[0]} is worse today than yesterday due to:
-• Northeast wind shift at 06:00 (direction 70° E) creating a wind corridor that traps emissions in the basin.
-• Boundary layer height dropped by 180m, increasing pollutant concentration.
-• Traffic contribution is at ${spikeInjected ? '76%' : '52%'} due to morning freight congestion.`;
-      }
-      setChatHistory(prev => [...prev, { role: 'assistant', text: response }]);
+    setChatInput('');
+    setChatHistory(prev => [...prev, { role: 'user', text: msg }]);
+
+    try {
+      const res = await fetch(`${API_URL}/api/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          context: { anomaly_active: spikeInjected, location: selectedLocation }
+        })
+      });
+      const data = await res.json();
+      setChatHistory(prev => [...prev, {
+        role: 'assistant',
+        text: data.reply,
+        isGroq: data.source === 'groq',
+        model: data.model
+      }]);
+    } catch (e) {
+      setChatHistory(prev => [...prev, {
+        role: 'assistant',
+        text: '⚠️ Could not reach AI backend. Please ensure backend is running on localhost:8000.'
+      }]);
+    } finally {
       setChatLoading(false);
-    }, 800);
+    }
+  }, [chatLoading, spikeInjected, selectedLocation]);
+
+  const handleSpikeToggle = async () => {
+    const next = !spikeInjected;
+    setSpikeInjected(next);
+    try {
+      await fetch(`${API_URL}/api/simulate/${next ? 'inject' : 'reset'}`, { method: 'POST' });
+    } catch (e) { /* ignore */ }
+  };
+
+  const handleExecuteAction = async (actId) => {
+    if (executingAction === actId) return;
+    setExecutingAction(actId);
+    try {
+      await fetch(`${API_URL}/api/enforcement/${actId}/execute`, { method: 'POST' });
+      if (onExecuteAction) onExecuteAction(actId);
+    } catch (e) { /* ignore */ } finally {
+      setTimeout(() => setExecutingAction(null), 1500);
+    }
   };
 
   return (
@@ -663,18 +725,19 @@ ${selectedLocation.split(',')[0]} is worse today than yesterday due to:
           </div>
 
           <button
-            onClick={() => setSpikeInjected(p => !p)}
+            onClick={handleSpikeToggle}
             style={{
               background: spikeInjected ? '#e74c3c' : T.ctrlBg,
               color: spikeInjected ? '#ffffff' : '#e74c3c',
               padding: '8px 16px', borderRadius: '8px',
-              boxShadow: T.ctrlShadow, border: `1px solid ${spikeInjected ? '#e74c3c' : T.border}`,
+              boxShadow: spikeInjected ? '0 0 18px rgba(231,76,60,0.55)' : T.ctrlShadow,
+              border: `2px solid ${spikeInjected ? '#e74c3c' : '#e74c3c'}`,
               display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.25s',
             }}
             className="ai-pulse-button"
           >
-            🚨 <span>{spikeInjected ? 'Clear Traffic Spike' : 'Inject Traffic Spike'}</span>
+            🚨 <span>{spikeInjected ? '⬛ Clear Spike' : '▶ Inject Transport Spike'}</span>
           </button>
         </div>
 
@@ -946,57 +1009,86 @@ ${selectedLocation.split(',')[0]} is worse today than yesterday due to:
           ) : (
             <>
               {/* Chat history */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', background: T.periodTabBg, padding: 12, borderRadius: 12 }}>
+              <div style={{
+                flex: 1, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto',
+                background: T.periodTabBg, padding: 12, borderRadius: 12, maxHeight: '420px'
+              }}>
                 {chatHistory.map((msg, idx) => (
                   <div key={idx} style={{
                     alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%', background: msg.role === 'user' ? '#f89c1d' : T.cardSolid,
+                    maxWidth: '90%',
+                    background: msg.role === 'user' ? '#f89c1d' : T.cardSolid,
                     color: msg.role === 'user' ? '#ffffff' : T.text,
-                    padding: '8px 12px', borderRadius: 12, fontSize: 10.5, lineHeight: 1.4,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)', whiteSpace: 'pre-line'
+                    padding: '9px 13px', borderRadius: 12, fontSize: 10.5, lineHeight: 1.5,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)', whiteSpace: 'pre-line',
+                    border: msg.isGroq ? '1px solid rgba(46,204,113,0.3)' : 'none'
                   }}>
+                    {msg.isGroq && (
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#2ecc71', marginBottom: 4, letterSpacing: '0.04em' }}>
+                        ⚡ GROQ LLM · {msg.model || 'llama3-8b'}
+                      </div>
+                    )}
                     {msg.text}
                   </div>
                 ))}
                 {chatLoading && (
-                  <div style={{ alignSelf: 'flex-start', background: T.cardSolid, padding: '8px 12px', borderRadius: 12, display: 'flex', gap: 4 }}>
-                    <span className="dot" style={{ width: 4, height: 4, background: T.muted, borderRadius: '50%', animation: 'pulse 1s infinite' }} />
-                    <span className="dot" style={{ width: 4, height: 4, background: T.muted, borderRadius: '50%', animation: 'pulse 1s infinite', animationDelay: '0.2s' }} />
-                    <span className="dot" style={{ width: 4, height: 4, background: T.muted, borderRadius: '50%', animation: 'pulse 1s infinite', animationDelay: '0.4s' }} />
+                  <div style={{ alignSelf: 'flex-start', background: T.cardSolid, padding: '10px 14px', borderRadius: 12, display: 'flex', gap: 5, alignItems: 'center' }}>
+                    <span style={{ fontSize: 9, color: T.muted, marginRight: 4 }}>AI thinking...</span>
+                    {[0, 0.2, 0.4].map((delay, i) => (
+                      <span key={i} style={{ width: 5, height: 5, background: '#f89c1d', borderRadius: '50%', animation: `pulse 1s ${delay}s infinite` }} />
+                    ))}
                   </div>
                 )}
+                <div ref={chatEndRef} />
               </div>
 
-              {/* Chat Prompt Suggestions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: T.muted }}>SUGGESTED QUERY TEMPLATES</span>
-                <button
-                  onClick={() => handleChatPrompt('Where should I deploy 3 inspectors today?')}
+              {/* Chat Input */}
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleChatPrompt(chatInput)}
+                  placeholder="Ask AI Copilot anything..."
                   style={{
-                    padding: '8px 12px', background: T.cardSolid, border: `1px solid ${T.border}`, borderRadius: 8,
-                    fontSize: 10, fontWeight: 600, color: T.text, textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s'
+                    flex: 1, background: T.inputBg, border: `1px solid ${T.border}`,
+                    borderRadius: 8, padding: '8px 12px', color: T.text, fontSize: 10.5,
+                    fontFamily: 'inherit', outline: 'none'
+                  }}
+                />
+                <button
+                  onClick={() => handleChatPrompt(chatInput)}
+                  disabled={chatLoading || !chatInput.trim()}
+                  style={{
+                    width: 36, height: 36, borderRadius: 8, background: chatInput.trim() ? '#f89c1d' : T.barBg,
+                    border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s'
                   }}
                 >
-                  💡 Where should I deploy 3 inspectors today?
+                  <Send size={14} color={chatInput.trim() ? '#000' : T.muted} />
                 </button>
-                <button
-                  onClick={() => handleChatPrompt('What is the expected impact of a traffic diversion?')}
-                  style={{
-                    padding: '8px 12px', background: T.cardSolid, border: `1px solid ${T.border}`, borderRadius: 8,
-                    fontSize: 10, fontWeight: 600, color: T.text, textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s'
-                  }}
-                >
-                  💡 What is the expected impact of a traffic diversion?
-                </button>
-                <button
-                  onClick={() => handleChatPrompt('Explain why Okhla has higher AQI than Dwarka today.')}
-                  style={{
-                    padding: '8px 12px', background: T.cardSolid, border: `1px solid ${T.border}`, borderRadius: 8,
-                    fontSize: 10, fontWeight: 600, color: T.text, textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s'
-                  }}
-                >
-                  💡 Explain why Okhla has higher AQI than Dwarka today.
-                </button>
+              </div>
+
+              {/* Suggested prompts */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.muted }}>QUICK QUERIES</span>
+                {[
+                  '💡 Which ward needs immediate intervention now?',
+                  '📊 Predict AQI for next 2 hours if no action taken',
+                  '🚛 Impact of diverting NH-44 freight today?',
+                ].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => handleChatPrompt(q.replace(/^[\S]+ /, ''))}
+                    style={{
+                      padding: '7px 10px', background: T.cardSolid, border: `1px solid ${T.border}`,
+                      borderRadius: 7, fontSize: 9.5, fontWeight: 600, color: T.text,
+                      textAlign: 'left', cursor: 'pointer', transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = '#f89c1d'}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
+                  >{q}</button>
+                ))}
               </div>
             </>
           )}
@@ -1047,17 +1139,23 @@ ${selectedLocation.split(',')[0]} is worse today than yesterday due to:
                 fill="rgba(46, 204, 113, 0.15)"
               />
 
-              {/* Forecast Line - No Action (Red) */}
+              {/* Forecast Line - No Action (Red) — thick & vivid */}
               <path
                 d={`M 369 ${y_base} L 412 ${y_no} L 455 ${y_no2}`}
-                fill="none" stroke="#e74c3c" strokeWidth="1.6" strokeDasharray="3 3"
+                fill="none" stroke="#e74c3c" strokeWidth="3.5" strokeDasharray="6 4"
+                strokeLinecap="round"
               />
+              {/* No-action label */}
+              <text x={460} y={y_no2} fontSize="7.5" fontWeight="800" fill="#e74c3c" dominantBaseline="middle">No Action</text>
 
-              {/* Forecast Line - With Intervention (Green) */}
+              {/* Forecast Line - With Intervention (Green) — thick & vivid */}
               <path
                 d={`M 369 ${y_base} L 412 ${y_wi} L 455 ${y_wi2}`}
-                fill="none" stroke="#2ecc71" strokeWidth="1.6" strokeDasharray="3 3"
+                fill="none" stroke="#00e676" strokeWidth="3.5" strokeDasharray="6 4"
+                strokeLinecap="round"
               />
+              {/* Intervention label */}
+              <text x={460} y={y_wi2 - 4} fontSize="7.5" fontWeight="800" fill="#00e676" dominantBaseline="middle">AI Act</text>
               
               {/* Stacked columns for each hour */}
               {displayHourlyData.map((item, idx) => {
